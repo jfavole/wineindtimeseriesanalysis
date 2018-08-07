@@ -8,13 +8,13 @@
 ## Import packages and attach dataset
 ##########################################################################
 library(forecast)
+library(tseries)
 library(astsa)
 library(ggplot2)
 library(ggthemes)
 library(magrittr)
 library(seasonal)
 library(urca)
-attach(wineind)
 
 
 ##########################################################################
@@ -27,12 +27,21 @@ summary(wineind)
 ts(wineind, frequency=12) # Send to a monthly time series object
 
 ## Basic plotting
+
+# Paradis sample
+tsdisplay(x=wineind,
+          cex.lab=1.5,
+          cex.main=1.5,
+          cex=1.5)
+
+# Standard ggplot
 autoplot(wineind) +
   ggtitle("Total monthly Australian wine sales, 1980-1994") +
   theme_light() +
   xlab("Date") +
   ylab("Sales, 1-liter+ bottles")
 
+# Standard ggplot
 ggseasonplot(wineind,
              year.labels = TRUE,
              year.labels.left = TRUE) +
@@ -81,6 +90,21 @@ wineind %>%
       robust=TRUE) %>%
   autoplot()
 
+# Paradis sample
+parts.add <- decompose(x=wineind,
+                       type='additive')
+plot(x=parts.add,
+     cex.lab=1.5,
+     cex.main=1.5,
+     cex=1.5)
+
+parts.mult <- decompose(x=wineind,
+                        type='multiplicative')
+plot(x=parts.mult,
+     cex.lab=1.5,
+     cex.main=1.5,
+     cex=1.5)
+
 ##########################################################################
 ## Basic forecasting
 ##########################################################################
@@ -97,6 +121,27 @@ autoplot(wineind2) +
   xlab("Year") +
   ylab("Sales, 1-liter+ bottles") +
   theme_light()
+
+##########################################################################
+## Tests for stationarity
+##########################################################################
+
+## Augmented Dickey-Fuller
+## Paradis sample, default formula for k.
+## Presence of unit root is the NULL hypothesis.
+## More negative D-F more strongly rejects null hypothesis of unit root.
+
+adf.test(x=wineind, alternative='stationary',
+         k=trunc((length(wineind)-1)^(1/3)))
+
+
+adf.test(x=wineind, alternative='stationary', k=12)
+
+
+## Kwiatkowski-Phillips-Schmidt-Shin
+## Presence of unit root is the ALTERNATIVE hypothesis.
+kpss.test(wineind, null='Level', lshort=T)
+kpss.test(wineind, null='Level', lshort=F)
 
 ##########################################################################
 ## Transformations and adjustments
@@ -121,6 +166,7 @@ autoplot(wineind) +
 
 ##########################################################################
 ## Residual diagnostics
+## All indicate autocorrelation
 ##########################################################################
 
 ## Naive methods
@@ -221,8 +267,6 @@ fit %>%
   ylab("Seasonal") +
   theme_light()
 
-## SEATS decomposition returns an error
-
 ##########################################################################
 ## Forecasting with decomposition
 ##########################################################################
@@ -236,6 +280,31 @@ fit %>% seasadj() %>% naive() %>%
 
 fit %>% forecast(method="naive") %>%
   autoplot() + ylab("New orders index")
+
+# Paradis sample
+parts.stl <- stl(x=wineind, s.window='periodic')
+parts.stl.sa <- seasadj(object=parts.stl)
+
+plot(x=wineind,
+     type='l',
+     main='wineind original',
+     cex.lab=1.5,
+     cex.main=1.5,
+     cex=1.5)
+
+plot(x=parts.stl.sa,
+     type='l',
+     main='wineind season adjusted',
+     cex.lab=1.5,
+     cex.main=1.5,
+     cex=1.5)
+
+seasonplot(x=parts.stl.sa,
+           s=12,
+           col=rainbow(12),
+           year.labels=T,
+           main='wineind seasonal plot',
+           cex.lab=2)
 
 ##########################################################################
 ## Exponential smoothing
@@ -325,29 +394,44 @@ ndiffs(wineind)
 wineind %>% log() %>% nsdiffs() 
 wineind %>% log() %>% diff(lag=12) %>% ndiffs()
 
+## Differencing causes problems with interpretability;
+## need to come back to this.
+
 ##########################################################################
 ## ARIMA modeling
 ##########################################################################
 
-# 1. Seasonal adjustment of the data
-wineind %>% stl(s.window='periodic') %>% seasadj() -> wiadj
-autoplot(wiadj) + 
-  ggtitle("Seasonally adjusted wineind data") +
-  theme_light()
+## Paradis sample: auto.arima
 
-# 2. Residual diagnostics and plots indicate that variance changes,
-#    so apply Box-Cox transformation
-lambda <- BoxCox.lambda(wineind)
-bc_wineind <- BoxCox(wineind,lambda)
+fit.arima <- auto.arima(y=wineind)
+checkresiduals(fit.arima)
+summary(fit.arima)
+str(fit.arima)
+accuracy(fit.arima)
 
-# 3. Take first difference of Box-Cox transformed data.
-bc_wineind %>% diff() %>% ggtsdisplay(main="")
-bc_d_wineind <- diff(bc_wineind) 
+qqnorm(
+  residuals(fit.arima), 
+  cex.lab = 1.5, 
+  cex.main = 1.5, 
+  cex = 1.5, 
+  main = 'Auto ARIMA model residuals normal Q-Q plot'
+)
+qqline(
+  residuals(fit.arima)
+)
 
-# 4. Take seasonal difference of data.
-bc_ds_wineind <- diff(bc_d_wineind, lag=12)
-bc_ds_wineind %>% ggtsdisplay(main="")
+forecast(object=fit.arima, h=10)
+plot(forecast(object=fit.arima, h=10),
+     cex.lab=1.5,
+     cex.main=1.5,
+     cex = 1.5)
 
-# 5. Fit an ARIMA model and check residuals.
-fit <- Arima(bc_ds_wineind, order=c(0,2,0))
-checkresiduals(fit)
+##########################################################################
+## GARCH modeling
+##########################################################################
+
+## Paradis sample
+fit.garch <- garch(x=wineind,
+                   grad='numerical',
+                   trace=F)
+summary(fit.garch)
