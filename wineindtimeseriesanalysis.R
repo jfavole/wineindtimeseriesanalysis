@@ -71,17 +71,8 @@ ggAcf(wineind, lag=48) +
   ggtitle("Autocorrelation plot (correlogram),\nmonthly Australian wine sales, 1980-1994") +
   theme_light()
 
-## Correlogram, differenced data
-diffwineind <- diff(wineind)
-ggAcf(diffwineind, lag=48) +
-  ggtitle("Correlogram, \ndifferenced monthly Australian wine sales, 1980-1994") +
-  theme_light()
-
 # PACF, original data
 pacf(wineind)
-
-# PACF, differenced data
-pacf(diffwineind)
 
 # STL (Seasonal and Trend using Loess) decomposition
 wineind %>%
