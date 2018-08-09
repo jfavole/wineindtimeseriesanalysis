@@ -144,6 +144,7 @@ autoplot(BoxCox(wineind, lambda)) +
   ggtitle("Box-Cox transformed monthly Australian wine sales, 1980-1994") +
   theme_light()
 
+
 ## Back transformed and bias-adjusted forecasts
 fc <- rwf(wineind, drift=TRUE, lambda=1, h=50, level=80)
 fc2 <- rwf(wineind, drift=TRUE, lambda=0.5, h=50, level=80, biasadj=TRUE)
@@ -378,15 +379,15 @@ pacf(ddiff)
 
 ## Unit root test to see if differencing is required
 wineind %>% ur.kpss() %>% summary() # Original data non-stationary
-diffwineind %>% ur.kpss() %>% summary() # Differenced data stationary
 ndiffs(wineind)
 
 ## Test whether seasonal differencing is required
 wineind %>% log() %>% nsdiffs() 
 wineind %>% log() %>% diff(lag=12) %>% ndiffs()
 
-## Differencing causes problems with interpretability;
-## need to come back to this.
+## Both trend and seasonality are present; may require double diff.
+## Differencing causes problems with interpretability.
+## Relying on auto.arima to handle.
 
 ##########################################################################
 ## ARIMA modeling
